@@ -11,20 +11,6 @@ confidence scores.
 
 ---
 
-## Why this project is structured the way it is (interview notes)
-
-Every design decision here answers a question that comes up in ML interviews:
-
-| Decision | Interview question it answers |
-|---|---|
-| Model loaded **once at startup** (singleton) into `app.state` | "How do you avoid reloading weights on every request?" |
-| `train.py` is separate from the API | "How do you separate the training and serving pipelines?" |
-| Input **validation** (MIME type, size, decodability) with proper HTTP codes | "How does your API fail gracefully on bad input?" |
-| Pydantic **response schema** | "How do you version and document your API contract?" |
-| Preprocessing defined **once** in `app/model.py` and reused | "How do you prevent train/serve skew?" |
-| Tests with `TestClient` and an in-memory image | "How do you test an ML service without a running server?" |
-| Augmentation on train split **only** | "What is data leakage and where does it hide?" |
-| Artifacts saved as `state_dict` + `config.json` | "How do you version models and keep inference reproducible?" |
 
 ### Known limitations (say these out loud in an interview — they score points)
 
@@ -40,27 +26,6 @@ Every design decision here answers a question that comes up in ML interviews:
 
 ---
 
-## Project structure
-
-```
-flower-classifier/
-├── app/
-│   ├── __init__.py
-│   ├── main.py            # FastAPI app: routes, validation, lifespan
-│   ├── model.py           # CNN architecture + FlowerPredictor (load & inference)
-│   └── static/
-│       └── index.html     # Browser UI: drag & drop a photo, see prediction
-├── model/
-│   ├── flower_cnn.pth     # trained weights (~2 MB)
-│   └── config.json        # classes, image size, normalization (train/serve contract)
-├── tests/
-│   └── test_api.py        # API tests with FastAPI TestClient
-├── train.py               # full training pipeline (run me to retrain)
-├── requirements.txt
-└── docs/
-    ├── demo_prediction.png
-    └── training_report.png
-```
 
 ## Quickstart
 
