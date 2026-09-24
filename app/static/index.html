@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flower Classifier</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa, #e4efe9);
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    background: #fff; border-radius: 16px; box-shadow: 0 10px 40px rgba(0,0,0,.12);
+    max-width: 520px; width: 100%; padding: 32px; text-align: center;
+  }
+  h1 { font-size: 24px; color: #2c3e50; margin-bottom: 4px; }
+  .sub { color: #7f8c8d; font-size: 14px; margin-bottom: 24px; }
+  #drop {
+    border: 2px dashed #bdc3c7; border-radius: 12px; padding: 40px 20px;
+    color: #7f8c8d; cursor: pointer; transition: .2s;
+  }
+  #drop:hover, #drop.over { border-color: #e91e63; color: #e91e63; background: #fdf2f6; }
+  #preview { max-width: 100%; max-height: 260px; border-radius: 8px; margin: 20px 0; display: none; }
+  #result { display: none; text-align: left; }
+  #pred-label { font-size: 22px; font-weight: 700; color: #e91e63; margin-bottom: 12px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }
+  .bar-row .name { width: 90px; color: #34495e; }
+  .bar-row .track { flex: 1; background: #ecf0f1; border-radius: 6px; height: 14px; overflow: hidden; }
+  .bar-row .fill { height: 100%; background: #e91e63; border-radius: 6px; width: 0; transition: width .5s; }
+  .bar-row .val { width: 48px; text-align: right; color: #7f8c8d; }
+  #err { display: none; color: #c0392b; background: #fdecea; border-radius: 8px;
+         padding: 10px 14px; margin-top: 16px; font-size: 14px; }
+  #spin { display: none; margin-top: 16px; color: #e91e63; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Flower Classifier</h1>
+  <p class="sub">CNN + FastAPI &mdash; daisy · dandelion · rose · sunflower · tulip</p>
+
+  <div id="drop">Click or drop a flower photo here</div>
+  <input type="file" id="file" accept="image/*" hidden>
+
+  <img id="preview" alt="uploaded flower">
+  <div id="spin">Analyzing&hellip;</div>
+
+  <div id="result">
+    <div id="pred-label"></div>
+    <div id="bars"></div>
+  </div>
+  <div id="err"></div>
+</div>
+
+<script>
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('file');
+const preview = document.getElementById('preview');
+const result = document.getElementById('result');
+const bars = document.getElementById('bars');
+const predLabel = document.getElementById('pred-label');
+const errBox = document.getElementById('err');
+const spin = document.getElementById('spin');
+
+drop.onclick = () => fileInput.click();
+drop.ondragover = e => { e.preventDefault(); drop.classList.add('over'); };
+drop.ondragleave = () => drop.classList.remove('over');
+drop.ondrop = e => { e.preventDefault(); drop.classList.remove('over');
+                     if (e.dataTransfer.files.length) handle(e.dataTransfer.files[0]); };
+fileInput.onchange = () => { if (fileInput.files.length) handle(fileInput.files[0]); };
+
+async function handle(file) {
+  errBox.style.display = 'none'; result.style.display = 'none';
+  preview.src = URL.createObjectURL(file); preview.style.display = 'block';
+  spin.style.display = 'block';
+
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const res = await fetch('/predict', { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Prediction failed');
+    showResult(data);
+  } catch (e) {
+    errBox.textContent = e.message; errBox.style.display = 'block';
+  } finally {
+    spin.style.display = 'none';
+  }
+}
+
+function showResult(data) {
+  predLabel.textContent = `${cap(data.class_name)} — ${(data.confidence * 100).toFixed(1)}% confident`;
+  bars.innerHTML = '';
+  for (const [cls, p] of Object.entries(data.probabilities)) {
+    const row = document.createElement('div');
+    row.className = 'bar-row';
+    row.innerHTML = `<span class="name">${cap(cls)}</span>
+      <div class="track"><div class="fill"></div></div>
+      <span class="val">${(p * 100).toFixed(1)}%</span>`;
+    bars.appendChild(row);
+    requestAnimationFrame(() => row.querySelector('.fill').style.width = `${p * 100}%`);
+  }
+  result.style.display = 'block';
+}
+
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+</script>
+</body>
+</html>
